@@ -1,0 +1,94 @@
+version: '3'
+
+services:
+    influxdb:
+        image: influxdb:latest
+        restart: unless-stopped
+        ports:
+            - 8083:8083
+            - 8086:8086
+        volumes:
+            - ./influxdb:/var/lib/influxdb
+        networks:
+            - dockernet
+        container_name: influxdb
+
+    sonarqube:
+        image: sonarqube:lts
+        restart: unless-stopped
+        ports:
+            - 9000:9000
+        environment:
+            - sonar.jdbc.username=sonar
+            - sonar.jdbc.password=sonar
+            - sonar.jdbc.url=jdbc:postgresql://db/sonar
+        volumes:
+            - ./sonarqube/conf:/opt/sonarqube/conf
+            - ./sonarqube/extensions:/opt/sonarqube/extensions
+            - ./sonarqube/data:/opt/sonarqube/data
+            - ./sonarqube/logs:/opt/sonarqube/logs
+        networks:
+            - dockernet
+            - sonarnet
+        container_name: sonarqube
+
+    grafana:
+        image: grafana/grafana:latest
+        restart: unless-stopped
+        ports:
+            - 3000:3000
+        links:
+            - influxdb
+        volumes:
+            - ./grafana:/var/lib/grafana
+        networks:
+            - dockernet
+        container_name: grafana
+
+    jenkins:
+        image: jenkins/jenkins:latest
+        restart: unless-stopped
+        ports:
+            - 49001:8080
+            - 50000:50000
+        links:
+            - influxdb
+            - sonarqube
+        volumes:
+            - ~/docker-jenkins/latest/jenkins:/var/jenkins_home:z
+        networks:
+            - dockernet
+        container_name: jenkins
+
+    db:
+        image: postgres
+        restart: unless-stopped
+        networks:
+          - sonarnet
+        environment:
+          - POSTGRES_USER=sonar
+          - POSTGRES_PASSWORD=sonar
+        volumes:
+          - ./postgres/postgresql:/var/lib/postgresql
+          # This needs explicit mapping due to https://github.com/docker-library/postgres/blob/4e48e3228a30763913ece952c611e5e9b95c8759/Dockerfile.template#L52
+          - ./postgres/postgresql_data:/var/lib/postgresql/data
+        container_name: postgres
+
+    socat:
+        image: bobrik/socat
+        restart: unless-stopped
+        command: TCP-LISTEN:2376,fork UNIX-CONNECT:/var/run/docker.sock
+        networks:
+          - dockernet
+        ports:
+          - 127.0.0.1:2376:2376
+          - 127.0.0.1:2375:2375
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        container_name: socat
+
+networks:
+    dockernet:
+        external: true
+    sonarnet:
+        driver: bridge
