@@ -35,6 +35,7 @@ services:
     grafana:
         image: grafana/grafana:latest
         restart: unless-stopped
+        user: "0"
         ports:
             - 3000:3000
         links:
