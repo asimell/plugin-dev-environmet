@@ -9,9 +9,27 @@ services:
             - 8086:8086
         volumes:
             - ./influxdb:/var/lib/influxdb
+            - ./influxdb/config.conf:/etc/influxdb/influxdb.conf:ro
         networks:
             - dockernet
         container_name: influxdb
+
+    influxdb2:
+        image: influxdb:2.0
+        restart: unless-stopped
+        ports:
+            - 8087:8086
+        volumes:
+            - ./influxdb2:/var/lib/influxdb2
+            - ./influxdb2/config.yml:/etc/influxdb2/config.yml:ro
+        environment:
+            - DOCKER_INFLUXDB_INIT_USERNAME=mikki
+            - DOCKER_INFLUXDB_INIT_PASSWORD=hiiri
+            - DOCKER_INFLUXDB_INIT_ORG=awesome-org
+            - DOCKER_INFLUXDB_INIT_BUCKET=awesome-bucket
+        networks:
+            - dockernet
+        container_name: influxdb2
 
     sonarqube:
         image: sonarqube:lts
@@ -54,6 +72,7 @@ services:
             - 50000:50000
         links:
             - influxdb
+            - influxdb2
             - sonarqube
         volumes:
             - ~/docker-jenkins/latest/jenkins:/var/jenkins_home:z
